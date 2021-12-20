@@ -1,0 +1,19 @@
+# ACI Health Score Notification
+
+{% if health_system %}
+- 현재 시스템 Health: **{{ health_system.imdata.0.fabricHealthTotal.attributes.cur }}** (max 100)
+{% endif %}
+
+{% if health_topology %}
+## 패브릭 Health Score
+{% for node in health_topology.results[0].imdata %}
+- Node {{ node.topSystem.attributes.name }} : **{{ node.topSystem.children.0.healthInst.attributes.cur }}**
+{% endfor %}
+{% endif %}
+
+## 테넌트 Health Score
+{% if health_tenant %}
+{% for node in health_tenant.results %}
+- {{ node.imdata.0.fvTenant.attributes.name }} : **{{ node.imdata.0.fvTenant.children.0.healthInst.attributes.cur }}**
+{% endfor %}
+{% endif %}

@@ -1,0 +1,23 @@
+---
+- name: "전송 파일 유무 확인"
+  stat: path="roles/call_webex/files/health_report.md"
+  register: file_check
+
+- name: "전송할 파일 읽기"
+  debug: msg="{{lookup('file', 'health_report.md') }}"
+  register:   health_tenant_message
+  when: file_check.stat.exists
+  
+- name: "Webex로 메시지 전송" 
+  cisco_spark:
+    recipient_type:   roomId
+    recipient_id:     "{{ roomID }}"
+    message_type:     markdown
+    personal_token:   "{{ bot_token }}"
+    message:          "{{ health_tenant_message.msg }}"
+  when: file_check.stat.exists
+
+- name: "전송된 파일 삭제"
+  file:
+    path: roles/call_webex/files/health_report.md
+    state: absent

@@ -1,0 +1,60 @@
+---
+- name: "시스템 헬스 정보 수집"
+  aci_rest:
+    host:           "{{ aci_host }}"
+    user:           "{{ aci_user }}"
+    password:       "{{ aci_password }}"
+    validate_certs: "{{ aci_valid_cert }}" 
+    use_ssl:        "{{ aci_use_ssl }}" 
+    path: /api/mo/topology/health.json
+    method: get
+  register: health_system
+
+- name: "토폴로지 헬스 정보 수집"
+  aci_rest:
+    host:           "{{ aci_host }}"
+    user:           "{{ aci_user }}"
+    password:       "{{ aci_password }}"
+    validate_certs: "{{ aci_valid_cert }}" 
+    use_ssl:        "{{ aci_use_ssl }}" 
+    path: /api/node/class/topSystem.json?rsp-subtree-include=health,required&rsp-subtree-filter=le(healthInst.cur,"{{ item.score }}")
+    method: get
+  with_items: 
+    - score: 100
+  register: health_topology
+
+- name: "각 테넌트 별 헬스 정보 수집"
+  aci_rest:
+    host:           "{{ aci_host }}"
+    user:           "{{ aci_user }}"
+    password:       "{{ aci_password }}"
+    validate_certs: "{{ aci_valid_cert }}" 
+    use_ssl:        "{{ aci_use_ssl }}" 
+    path: /api/node/class/fvTenant.json?rsp-subtree-include=health,required&rsp-subtree-filter=le(healthInst.cur,"{{ item.score }}")
+    method: get
+  with_items: 
+    - score: 100
+  register: health_tenant
+
+- name: "시스템/토폴로지/테넌트 헬스 정보를 Json 파일로 저장"
+  copy:
+    content: "{{ item.content | to_nice_json}}"
+    dest:    "{{ item.dest }}"
+  no_log: yes
+  loop:
+    - content: "{{ health_system }}"
+      dest:    "roles/monitor_health/files/health_system.json"
+    - content: "{{ health_topology }}"
+      dest:    "roles/monitor_health/files/health_topology.json"
+    - content: "{{ health_tenant }}"
+      dest:    "roles/monitor_health/files/health_tenant.json"
+
+- name: "메시지 전송 여부 체크 스크립트 실행"
+  script: check.py
+  register: check_result
+
+- name: "수집한 데이터를 Webex 메시지 형태의 파일로 변환 (Markdown 포맷)"
+  template: 
+    src:  "template/health_report.j2"
+    dest: "roles/call_webex/files/health_report.md"
+  when: check_result.stdout | bool
