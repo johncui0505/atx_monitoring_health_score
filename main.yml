@@ -1,0 +1,9 @@
+- hosts: aci
+  connection: local
+  gather_facts: no
+  collections:
+  - cisco.aci
+
+  roles:
+  - monitor_health
+  - call_webex
